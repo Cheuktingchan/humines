@@ -1,44 +1,84 @@
 module Main where
 
-import Grid
 import Graphics.Gloss
 import Data.Int (Int)
-import Graphics.Gloss.Interface.IO.Interact (Event (..), Key (..), SpecialKey (..) )
+import Graphics.Gloss.Interface.IO.Interact
+import Graphics.Gloss.Interface.Pure.Game
 import Graphics.Gloss.Interface.Environment (getScreenSize)
+import Grid ( drawGrid, emptyGrid, makeGrid, getCell, Cell (cellState), CellState (Solid), Grid )
+import Settings
+import Game
 
 data Scene = Menu | Game | GameOver
     deriving (Eq, Show)
 
 data World = World {
-    scene      :: Scene        -- Is the game running?
+    scene      :: Scene,        -- current scene of the game
+    grid :: Grid,
+    controllingCoords :: [Coord],
+    fallingCoords :: [Coord],
+    solidCoords :: [Coord]
 }
 
-makeWorld = World {
-    scene = Menu
+initialWorld = World {
+    scene = Game,
+    controllingCoords = [(8,11),(9,11),(8,10),(9,10),(8,9),(9,9),(8,8),(9,8)],
+    fallingCoords = [(8,11),(9,11),(8,10),(9,10),(8,9),(9,9),(8,8),(9,8)],
+    grid = addNewSolid (solidCoords initialWorld) (addNewBlock (fallingCoords initialWorld) emptyGrid),
+    solidCoords = [(8,4)]
 }
 
-
-windowSize = (1000,600)
-
-windowWidth = fst windowSize
-windowHeight = snd windowSize
-
-getCenterPosition :: IO (Int, Int)
-getCenterPosition = do
-    (resWidth,resHeight) <- getScreenSize   -- places window in the center of screen (if multiple extended displays - treats as one whole display)
-    pure ((resWidth-windowWidth) `div` 2, (resHeight-windowHeight) `div` 2)
-    
 draw :: World -> Picture
-draw world = pictures [drawGrid emptyGrid]
+draw world = drawGrid $ grid world
 
-handleInput :: Event -> World -> World
-handleInput e world = world
+handler :: Event -> World -> World
+handler (EventKey (Char 'a') Down _ _) world =
+    case scene world of
+        Game        -> world {
+            controllingCoords = map (\(x,y) -> (x - 1, y)) $ controllingCoords world
+        }
+        Menu        -> world
+        GameOver    -> world
+handler (EventKey (Char 'd') Down _ _) world =
+    case scene world of
+        Game        -> world {
+            controllingCoords = map (\(x,y) -> (x + 1, y)) $ controllingCoords world
+        }
+        Menu        -> world
+        GameOver    -> world
+
+handler e world = world
+
+{- update :: Float -> World -> World
+update time world = world { fallingCoords = newFallingCoords $ fallingCoords world, solidCoords = solidCoords world ++ newSolidCoords (fallingCoords world)}
+    where
+        newFallingCoords :: [Coord] -> [Coord]
+        newFallingCoords [] = []
+        newFallingCoords ((x,y):coords)
+            | y == 1        = newFallingCoords coords
+            | cellState (getCell (makeGrid (fallingCoords world) (solidCoords world)) (x, y-1)) == Solid = newFallingCoords coords
+            | otherwise     = (x,y - 1) : newFallingCoords coords
+
+        newSolidCoords :: [Coord] -> [Coord]
+        newSolidCoords [] = []
+        newSolidCoords ((x,y):coords)
+            | y == 1        = (x,y) : newSolidCoords ((x, y + 1):coords)
+            | cellState (getCell (makeGrid (fallingCoords world) (solidCoords world)) (x, y-1)) == Solid = (x,y) : newSolidCoords ((x, y + 1):coords)
+            | otherwise     = newSolidCoords coords -}
 
 update :: Float -> World -> World
-update time world = world
+update time world = world {grid = newGrid}
+    where
+        newGrid = makeGrid (fallGrid (grid world)) (controllingCoords world)
 
 main :: IO ()
-main =
-    do
+main = do
     gamePosition <- getCenterPosition
-    play (InWindow "Humines" windowSize gamePosition) backgroundColor 60 makeWorld draw handleInput update
+    play
+        (InWindow "Humines" windowSize gamePosition)
+        haskellColor
+        15
+        initialWorld
+        draw
+        handler
+        update

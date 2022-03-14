@@ -25,7 +25,9 @@ source-repository head
 
 library
   exposed-modules:
+      Game
       Grid
+      Settings
   other-modules:
       Paths_humines
   hs-source-dirs:
