@@ -37,27 +37,27 @@ emptyGrid :: Grid
 emptyGrid = Grid (array ((1,1),(gridWidth,gridHeight)) [((x,y), Cell {cellObject = Empty, cellState = None, controlling = False}) | x<-[1..gridWidth], y<-[1..gridHeight]])
 
 makeGrid :: Grid -> [Coord] -> Grid
-makeGrid grid fallingCoords = foldr (setCell Cell {cellObject = Orange, cellState = Falling, controlling = True}) grid fallingCoords
+makeGrid = foldr (setCell Cell {cellObject = Orange, cellState = Falling, controlling = True})
 
 drawGrid :: Grid -> Picture
 drawGrid grid = pictures [drawCell x y | x <- [1..gridWidth], y <- [1..gridHeight]]
     where
         drawCell x y = translate (fromIntegral x * cellSize - fromIntegral (windowWidth `div` 2 - gridWidth * 10)) (fromIntegral y * 40 - fromIntegral (windowHeight `div` 2 - gridHeight * 6)) $
 
-{-             case getCellObject of
+            case getCellObject of
                 Empty   -> pictures [
                             color haskellColor $ rectangleSolid cellSize cellSize,
                             color black $ rectangleWire cellSize cellSize]
                 Orange  -> color orange $ rectangleSolid cellSize cellSize
 
-                White   -> color orange $ rectangleSolid cellSize cellSize -}
-            case getCellState of
+                White   -> color orange $ rectangleSolid cellSize cellSize
+{-             case getCellState of
                 None   -> pictures [
                             color haskellColor $ rectangleSolid cellSize cellSize,
                             color black $ rectangleWire cellSize cellSize]
                 Falling  -> color orange $ rectangleSolid cellSize cellSize
 
-                Solid   -> color white $ rectangleSolid cellSize cellSize
+                Solid   -> color white $ rectangleSolid cellSize cellSize -}
                 where
                     getCellObject = cellObject $ getCell grid (x,y)
                     getCellState = cellState $ getCell grid (x,y)

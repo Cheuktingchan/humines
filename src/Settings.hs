@@ -5,6 +5,9 @@ import Graphics.Gloss (makeColorI)
 
 type Coord = (Int, Int)
 
+data Direction = Stationary | Left | Right
+    deriving (Eq, Show)
+
 haskellColor = makeColorI 94 80 134 255
 
 windowSize = (1000,600)
@@ -15,5 +18,6 @@ windowHeight = snd windowSize
 
 getCenterPosition :: IO (Int, Int)
 getCenterPosition = do
-    (resWidth,resHeight) <- getScreenSize   -- places window in the center of screen (if multiple extended displays - treats as one whole display)
+    -- the center of screen (note: if multiple extended displays - treats it as one whole display)
+    (resWidth,resHeight) <- getScreenSize
     pure ((resWidth-windowWidth) `div` 2, (resHeight-windowHeight) `div` 2)

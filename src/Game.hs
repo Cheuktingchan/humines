@@ -5,95 +5,61 @@ import Grid
 import Data.Array (array)
 import Data.Function ((&))
 
-
-{- fallColumn :: Coord -> Grid -> Grid
-fallColumn (x,y) (Grid oldArr) = setCell  -}
-
-{- fallGrid :: Grid -> Grid
-fallGrid grid = Grid (array ((1,1),(gridWidth,gridHeight)) [((x,y), fallCell x y) | x<-[1..gridWidth], y<-[1..gridHeight]])
-    where
-    fallCell x y
-        | y == 1                          = 
-            case getCellStateAbove of
-                None    -> getCell grid (x,y)
-                Solid   -> getCell grid (x,y)
-                Falling -> (getCell grid (x,y)) {cellState = Solid , cellObject = cellObject $ getCell grid (x,y + 1)}
-        | y == 12                         = getCell grid (x,y)
-        | getCellState == None            =
-            case getCellStateAbove of
-                None    -> getCell grid (x,y)
-                Solid   -> getCell grid (x,y)
-                Falling -> (getCell grid (x,y)) {cellState = cellState $ getCell grid (x,y + 1) , cellObject = cellObject $ getCell grid (x,y + 1)}
-        | getCellState == Solid            =
-            case getCellStateAbove of
-                None    -> getCell grid (x,y)
-                Solid   -> getCell grid (x,y)
-                Falling -> getCell grid (x,y)
-        | getCellState == Falling         =
-            case getCellStateAbove of
-                None    -> (getCell grid (x,y)) {cellState = cellState $ getCell grid (x,y + 1) , cellObject = cellObject $ getCell grid (x,y + 1)}
-                Solid   -> (getCell grid (x,y)) {cellState = Solid , cellObject = cellObject $ getCell grid (x,y)}
-                Falling -> getCell grid (x,y)
-        | otherwise                       = getCell grid (x,y)
-
-        where
-            getCellState = cellState $ getCell grid (x,y)
-            getCellStateAbove = cellState $ getCell grid (x,y + 1)
-            getCellStateBelow = cellState $ getCell grid (x,y - 1) -}
-
-
 fallGrid :: Grid -> Grid
 fallGrid grid = foldr fallCell grid coords
     where
+        -- this ordering for updating grid succesively left to right, top to bottom
         coords :: [Coord]
-        coords = [ (x,y) | x <- [gridWidth, gridWidth-1 ..1], y <- [gridHeight , gridHeight -1 ..1]] -- go in reverse because of foldr
+        coords = [ (x,y) | x <- [gridWidth, gridWidth-1 ..1], y <- [gridHeight , gridHeight -1 ..1]]
+
         fallCell :: Coord -> Grid -> Grid
-        fallCell (x,y) grid = setCell thisCell (x,y) grid
+        fallCell (x,y) grid = setCell thisCoordCell (x,y) grid
             where
-                thisCell :: Cell
-                thisCell
-                    | y == 1  && getCellState == Falling    =
+                -- rules for falling cells in the game
+                thisCoordCell :: Cell
+                thisCoordCell
+                    -- Top two rows of the grid are for dropping (don't fall)
+                    | y == 12 || y == 11                                = Cell {cellState = None , cellObject = Empty, controlling = False}
+                    | y == 1  && getCellState == Falling                =
                         case getCellStateAbove of
-                            None    -> getCell grid (x,y)
-                            Solid   -> getCell grid (x,y)
-                            Falling -> (getCell grid (x,y)) {cellState = Solid , cellObject = cellObject $ getCell grid (x,y)}
-                    | y == 1                          =
+                            None    -> thisCell
+                            Solid   -> thisCell
+                            Falling -> thisCell {cellState = Solid , cellObject = cellObject thisCell}
+                    | (y == 1  || getCellState == None) && y /= 10      =
                         case getCellStateAbove of
-                            None    -> getCell grid (x,y)
-                            Solid   -> getCell grid (x,y)
-                            Falling -> (getCell grid (x,y)) {cellState = Falling , cellObject = cellObject $ getCell grid (x,y + 1)}
-                    | y == 12                         = getCell grid (x,y)
-                    | getCellState == None            =
+                            None    -> thisCell
+                            Solid   -> thisCell
+                            Falling -> thisCell {cellState = Falling , cellObject = cellObject cellAbove}
+                    | getCellState == Solid                             =
                         case getCellStateAbove of
-                            None    -> getCell grid (x,y)
-                            Solid   -> getCell grid (x,y)
-                            Falling -> (getCell grid (x,y)) {cellState = cellState $ getCell grid (x,y + 1) , cellObject = cellObject $ getCell grid (x,y + 1)}
-                    | getCellState == Solid            =
-                        case getCellStateAbove of
-                            None    -> getCell grid (x,y)
-                            Solid   -> getCell grid (x,y)
-                            Falling -> (getCell grid (x,y)) {cellState = Solid , cellObject = cellObject $ getCell grid (x,y + 1)}
+                            None    -> thisCell
+                            Solid   -> thisCell
+                            Falling -> thisCell {cellState = Solid , cellObject = cellObject cellAbove}
                     | getCellState == Falling && getCellStateAbove == Falling        =
                         case getCellStateBelow of
-                            None    -> (getCell grid (x,y)) {cellState = cellState $ getCell grid (x,y + 1) , cellObject = cellObject $ getCell grid (x,y + 1)}
-                            Solid   -> (getCell grid (x,y)) {cellState = Solid , cellObject = cellObject $ getCell grid (x,y)}
-                            Falling -> getCell grid (x,y)
+                            None    -> thisCell {cellState = cellState cellAbove , cellObject = cellObject cellAbove}
+                            Solid   -> thisCell {cellState = Solid , cellObject = cellObject thisCell}
+                            Falling -> thisCell
                     | getCellState == Falling && getCellStateBelow == Solid   =
                         case getCellStateAbove of
-                            None    -> (getCell grid (x,y)) {cellState = Solid , cellObject = cellObject $ getCell grid (x,y)}
-                            Solid   -> (getCell grid (x,y)) {cellState = Solid , cellObject = cellObject $ getCell grid (x,y + 1)}
-                            Falling -> (getCell grid (x,y)) {cellState = Solid , cellObject = cellObject $ getCell grid (x,y + 1)}
+                            None    -> thisCell {cellState = Solid , cellObject = cellObject thisCell}
+                            Solid   -> thisCell {cellState = Solid , cellObject = cellObject cellAbove}
+                            Falling -> thisCell {cellState = Solid , cellObject = cellObject cellAbove}
                     | getCellState == Falling                                 =
                         case getCellStateAbove of
-                            None    -> (getCell grid (x,y)) {cellState = cellState $ getCell grid (x,y + 1) , cellObject = cellObject $ getCell grid (x,y + 1)}
-                            Solid   -> (getCell grid (x,y)) {cellState = Solid , cellObject = cellObject $ getCell grid (x,y + 1)}
-                            Falling -> (getCell grid (x,y)) {cellState = Solid , cellObject = cellObject $ getCell grid (x,y + 1)}
-                    | otherwise                       = getCell grid (x,y)
+                            None    -> thisCell {cellState = None , cellObject = cellObject cellAbove}
+                            Solid   -> thisCell {cellState = Solid , cellObject = cellObject cellAbove}
+                            Falling -> thisCell {cellState = Solid , cellObject = cellObject cellAbove}
+                    | otherwise                       = thisCell
 
                     where
+                        thisCell = getCell grid (x,y)
+                        cellAbove = getCell grid (x,y + 1)
+                        cellBelow = getCell grid (x,y - 1)
                         getCellState = cellState $ getCell grid (x,y)
                         getCellStateAbove = cellState $ getCell grid (x,y + 1)
                         getCellStateBelow = cellState $ getCell grid (x,y - 1)
+
 
 addNewBlock :: [Coord] -> Grid -> Grid
 addNewBlock fallingCoords grid = foldr (setCell Cell {cellObject = Orange, cellState = Falling, controlling = True}) grid fallingCoords

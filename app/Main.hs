@@ -1,11 +1,12 @@
 module Main where
 
+import Prelude hiding (Either, Left,Right)
 import Graphics.Gloss
 import Data.Int (Int)
 import Graphics.Gloss.Interface.IO.Interact
 import Graphics.Gloss.Interface.Pure.Game
 import Graphics.Gloss.Interface.Environment (getScreenSize)
-import Grid ( drawGrid, emptyGrid, makeGrid, getCell, Cell (cellState), CellState (Solid), Grid )
+import Grid
 import Settings
 import Game
 
@@ -16,16 +17,16 @@ data World = World {
     scene      :: Scene,        -- current scene of the game
     grid :: Grid,
     controllingCoords :: [Coord],
-    fallingCoords :: [Coord],
-    solidCoords :: [Coord]
+    controllingCellObjects :: [CellObject],
+    direction :: Direction
 }
 
 initialWorld = World {
     scene = Game,
-    controllingCoords = [(8,11),(9,11),(8,10),(9,10),(8,9),(9,9),(8,8),(9,8)],
-    fallingCoords = [(8,11),(9,11),(8,10),(9,10),(8,9),(9,9),(8,8),(9,8)],
-    grid = addNewSolid (solidCoords initialWorld) (addNewBlock (fallingCoords initialWorld) emptyGrid),
-    solidCoords = [(8,4)]
+    controllingCoords = [(8,12),(9,12),(8,11),(9,11)],
+    controllingCellObjects = [Orange,White,Orange,White],
+    grid = emptyGrid,
+    direction = Stationary
 }
 
 draw :: World -> Picture
@@ -35,14 +36,37 @@ handler :: Event -> World -> World
 handler (EventKey (Char 'a') Down _ _) world =
     case scene world of
         Game        -> world {
-            controllingCoords = map (\(x,y) -> (x - 1, y)) $ controllingCoords world
+            direction = Left
         }
         Menu        -> world
         GameOver    -> world
 handler (EventKey (Char 'd') Down _ _) world =
     case scene world of
         Game        -> world {
-            controllingCoords = map (\(x,y) -> (x + 1, y)) $ controllingCoords world
+            direction = Right
+        }
+        Menu        -> world
+        GameOver    -> world
+
+handler (EventKey (Char 'a') Up _ _) world =
+    case scene world of
+        Game        -> world {
+            direction = Stationary
+        }
+        Menu        -> world
+        GameOver    -> world
+handler (EventKey (Char 'd') Up _ _) world =
+    case scene world of
+        Game        -> world {
+            direction = Stationary
+        }
+        Menu        -> world
+        GameOver    -> world
+
+handler (EventKey (Char 's') Down _ _) world =
+    case scene world of
+        Game        -> world {
+            controllingCoords = map (\(x,y) -> (x, y - 2)) $ controllingCoords world
         }
         Menu        -> world
         GameOver    -> world
@@ -67,10 +91,25 @@ update time world = world { fallingCoords = newFallingCoords $ fallingCoords wor
             | otherwise     = newSolidCoords coords -}
 
 update :: Float -> World -> World
-update time world = world {grid = newGrid}
+update time world
+    | even (round time)    = world {grid = newGrid, controllingCoords = newControllingCoords}
+    | otherwise             = world {grid = newGrid}
     where
         newGrid = makeGrid (fallGrid (grid world)) (controllingCoords world)
-
+        newControllingCoords
+            -- if any controllingCoords below top two rows, reset coords ( new block )
+            | snd (head (controllingCoords world)) == 12 || snd (head (controllingCoords world)) == 11 =
+                case direction world of
+                    Left  -> map goLeft $ controllingCoords world
+                    Right -> map goRight $ controllingCoords world
+                    Stationary -> controllingCoords world
+            | otherwise             = [(8,12),(9,12),(8,11),(9,11)]
+        goLeft
+            | any (\(x,y) -> x == 1) (controllingCoords world)   = \(x,y) -> (x, y)
+            | otherwise     = \(x,y) -> (x - 1, y)
+        goRight
+            | any (\(x,y) -> x == gridWidth) (controllingCoords world)   = \(x,y) -> (x, y)
+            | otherwise     = \(x,y) -> (x + 1, y)
 main :: IO ()
 main = do
     gamePosition <- getCenterPosition
