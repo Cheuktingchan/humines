@@ -1,6 +1,7 @@
 module Main where
 
 import Prelude hiding (Either, Left,Right)
+import System.Random
 import Graphics.Gloss
 import Data.Int (Int)
 import Graphics.Gloss.Interface.IO.Interact
@@ -18,7 +19,9 @@ data World = World {
     grid :: Grid,
     controllingCoords :: [Coord],
     controllingCellObjects :: [CellObject],
-    direction :: Direction
+    direction :: Direction,
+    randomSeed :: (Int, StdGen),
+    frameCount :: Int,
 }
 
 initialWorld = World {
@@ -26,7 +29,9 @@ initialWorld = World {
     controllingCoords = [(8,12),(9,12),(8,11),(9,11)],
     controllingCellObjects = [Orange,White,Orange,White],
     grid = emptyGrid,
-    direction = Stationary
+    direction = Stationary,
+    randomSeed = randomR (0, 15) (mkStdGen 1),
+    frameCount = 0
 }
 
 draw :: World -> Picture
@@ -40,6 +45,7 @@ handler (EventKey (Char 'a') Down _ _) world =
         }
         Menu        -> world
         GameOver    -> world
+        
 handler (EventKey (Char 'd') Down _ _) world =
     case scene world of
         Game        -> world {
@@ -51,14 +57,15 @@ handler (EventKey (Char 'd') Down _ _) world =
 handler (EventKey (Char 'a') Up _ _) world =
     case scene world of
         Game        -> world {
-            direction = Stationary
+            direction = if direction world == Left then Stationary else Right
         }
         Menu        -> world
         GameOver    -> world
+
 handler (EventKey (Char 'd') Up _ _) world =
     case scene world of
         Game        -> world {
-            direction = Stationary
+            direction = if direction world == Right then Stationary else Left
         }
         Menu        -> world
         GameOver    -> world
@@ -91,32 +98,40 @@ update time world = world { fallingCoords = newFallingCoords $ fallingCoords wor
             | otherwise     = newSolidCoords coords -}
 
 update :: Float -> World -> World
-update time world
-    | even (round time)    = world {grid = newGrid, controllingCoords = newControllingCoords}
-    | otherwise             = world {grid = newGrid}
+update time world = world {grid = newGrid,
+    controllingCoords = newControllingCoords,
+    randomSeed = newSeed,
+    controllingCellObjects = allPossibleBlocks !! fst newSeed,
+    frameCount = frameCount world + 1}
     where
-        newGrid = makeGrid (fallGrid (grid world)) (controllingCoords world)
-        newControllingCoords
-            -- if any controllingCoords below top two rows, reset coords ( new block )
+        newGrid = makeGrid (controllingCellObjects world) (controllingCoords world) (updateGrid (grid world)) 
+        
+        newControllingCoords -- if the controllingCoords are not in rows 11 or 12, reset coords ( new block )
             | snd (head (controllingCoords world)) == 12 || snd (head (controllingCoords world)) == 11 =
                 case direction world of
                     Left  -> map goLeft $ controllingCoords world
                     Right -> map goRight $ controllingCoords world
                     Stationary -> controllingCoords world
             | otherwise             = [(8,12),(9,12),(8,11),(9,11)]
-        goLeft
-            | any (\(x,y) -> x == 1) (controllingCoords world)   = \(x,y) -> (x, y)
-            | otherwise     = \(x,y) -> (x - 1, y)
-        goRight
-            | any (\(x,y) -> x == gridWidth) (controllingCoords world)   = \(x,y) -> (x, y)
-            | otherwise     = \(x,y) -> (x + 1, y)
+        goLeft -- if any block in column 1, don't go left any more, else go left
+            | all (\(x,y) -> x /= 1) (controllingCoords world) && frameCount world `mod` 5 == 0          = \(x,y) -> (x - 1, y)
+            | otherwise     = \(x,y) -> (x, y)
+        goRight -- if any block in column gridWidth, don't go right any more, else go right
+            | all (\(x,y) -> x /= gridWidth) (controllingCoords world) && frameCount world `mod` 5 == 0  = \(x,y) -> (x + 1, y)
+            | otherwise     = \(x,y) -> (x, y)
+
+        newSeed :: (Int, StdGen)
+        newSeed
+            | snd (head (controllingCoords world)) == 12 || snd (head (controllingCoords world)) == 11 = randomSeed world
+            | otherwise             = randomR (0, 15) (snd $ randomSeed world)
+
 main :: IO ()
 main = do
     gamePosition <- getCenterPosition
     play
         (InWindow "Humines" windowSize gamePosition)
         haskellColor
-        15
+        60
         initialWorld
         draw
         handler

@@ -36,6 +36,7 @@ library
       array
     , base >=4.7 && <5
     , gloss
+    , random
   default-language: Haskell2010
 
 executable humines-exe
@@ -50,6 +51,7 @@ executable humines-exe
     , base >=4.7 && <5
     , gloss
     , humines
+    , random
   default-language: Haskell2010
 
 test-suite humines-test
@@ -65,4 +67,5 @@ test-suite humines-test
     , base >=4.7 && <5
     , gloss
     , humines
+    , random
   default-language: Haskell2010

@@ -9,7 +9,7 @@ data Direction = Stationary | Left | Right
     deriving (Eq, Show)
 
 haskellColor = makeColorI 94 80 134 255
-
+transparentColor = makeColorI 0 0 0 0
 windowSize = (1000,600)
 
 windowWidth = fst windowSize
