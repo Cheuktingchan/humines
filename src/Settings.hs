@@ -10,6 +10,9 @@ data Direction = Stationary | Left | Right
 
 haskellColor = makeColorI 94 80 134 255
 transparentColor = makeColorI 0 0 0 0
+
+
+crayolaColor = makeColorI 196 91 170 255
 windowSize = (1000,600)
 
 windowWidth = fst windowSize

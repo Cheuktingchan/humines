@@ -22,6 +22,8 @@ data World = World {
     direction :: Direction,
     randomSeed :: (Int, StdGen),
     frameCount :: Int,
+    score :: Int,
+    timer :: Int
 }
 
 initialWorld = World {
@@ -31,7 +33,9 @@ initialWorld = World {
     grid = emptyGrid,
     direction = Stationary,
     randomSeed = randomR (0, 15) (mkStdGen 1),
-    frameCount = 0
+    frameCount = 0,
+    score = 0,
+    timer = 0
 }
 
 draw :: World -> Picture
@@ -104,8 +108,9 @@ update time world = world {grid = newGrid,
     controllingCellObjects = allPossibleBlocks !! fst newSeed,
     frameCount = frameCount world + 1}
     where
-        newGrid = makeGrid (controllingCellObjects world) (controllingCoords world) (updateGrid (grid world)) 
-        
+        newGrid 
+            | frameCount world `mod` 360 == 0   = makeGrid (controllingCellObjects world) (controllingCoords world) (updateGrid True (grid world)) 
+            | otherwise                         = makeGrid (controllingCellObjects world) (controllingCoords world) (updateGrid False (grid world))
         newControllingCoords -- if the controllingCoords are not in rows 11 or 12, reset coords ( new block )
             | snd (head (controllingCoords world)) == 12 || snd (head (controllingCoords world)) == 11 =
                 case direction world of

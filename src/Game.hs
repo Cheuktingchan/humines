@@ -9,27 +9,33 @@ import Data.Maybe (fromMaybe)
 allPossibleBlocks :: [[CellObject]]
 allPossibleBlocks = sequenceA (replicate 4 [Orange,White])
 
-updateGrid :: Grid -> Grid
-updateGrid grid = foldr fallCell grid coords
+updateGrid :: Bool -> Grid -> Grid
+updateGrid destroyBlocks grid = foldr updateCell grid coords
     where
         -- this ordering for updating grid succesively left to right, top to bottom
         coords :: [Coord]
         coords = [ (x,y) | x <- [gridWidth, gridWidth-1 ..1], y <- [gridHeight , gridHeight -1 ..1]]
 
-        fallCell :: Coord -> Grid -> Grid
-        fallCell (x,y) grid = setCell thisCoordCell (x,y) grid
+        updateCell :: Coord -> Grid -> Grid
+        updateCell (x,y) grid = setCell thisCoordCell (x,y) grid
             where
                 -- rules for falling cells in the game
                 thisCoordCell :: Cell
                 thisCoordCell
                     -- Top two rows of the grid are for dropping (usual logic does not apply)
+                    | destroyBlocks && toDestroy thisCell                       = Cell {cellState = None , cellObject = Empty, toDestroy = False}
+                    | destroyBlocks && getCellState == Solid                    = 
+                        case getCellStateBelow of
+                            None    -> thisCell {cellState = Falling}
+                            Solid   -> thisCell
+                            Falling -> thisCell {cellState = Falling}
                     | getCellState == Solid                                     = setDestroyCell thisCell
-                    | y == gridHeight || y == gridHeight - 1                    = Cell {cellState = None , cellObject = Empty, toDestroy = False}
+                    | y == gridHeight || y == gridHeight - 1                    = Cell {cellState = None , cellObject = Empty, toDestroy = False} -- top two rows clear for dropping
                     | y == 1  && getCellState == Falling                        =
                         case getCellStateAbove of
                             None    -> thisCell
                             Solid   -> thisCell
-                            Falling -> thisCell {cellState = Solid , cellObject = cellObject thisCell}
+                            Falling -> thisCell {cellState = Solid}
                     | (y == 1  || getCellState == None) && y /= gridHeight - 2  =
                         case getCellStateAbove of
                             None    -> thisCell
@@ -37,12 +43,12 @@ updateGrid grid = foldr fallCell grid coords
                             Falling -> thisCell {cellState = Falling , cellObject = cellObject cellAbove}
                     | getCellState == Falling && getCellStateAbove == Falling   =
                         case getCellStateBelow of
-                            None    -> thisCell {cellState = cellState cellAbove , cellObject = cellObject thisCell}
-                            Solid   -> thisCell {cellState = Solid , cellObject = cellObject thisCell}
+                            None    -> thisCell {cellState = cellState cellAbove}
+                            Solid   -> thisCell {cellState = Solid}
                             Falling -> thisCell {cellState = cellState cellAbove , cellObject = cellObject cellAbove}
                     | getCellState == Falling && getCellStateBelow == Solid     =
                         case getCellStateAbove of
-                            None    -> thisCell {cellState = Solid , cellObject = cellObject thisCell}
+                            None    -> thisCell {cellState = Solid}
                             Solid   -> thisCell {cellState = Solid , cellObject = cellObject cellAbove}
                             Falling -> thisCell {cellState = Solid , cellObject = cellObject cellAbove}
                     | getCellState == Falling                                   =
@@ -67,9 +73,8 @@ updateGrid grid = foldr fallCell grid coords
 
                         setDestroyCell :: Cell -> Cell
                         setDestroyCell cell -- just check to the right because we loop right to left already
-                            | or [a | a <- solidSquareCheck <$> [(x - 1, y - 1), (x - 1,y), (x , y - 1), (x,y)]]  = cell {toDestroy = True}
-                            | otherwise                                             = cell
-
+                            | or [ a | a <- solidSquareCheck <$> [(x - 1, y - 1), (x - 1, y), (x , y - 1), (x, y)]] = cell {toDestroy = True}
+                            | otherwise                                                                             = cell
 
 addNewBlock :: [Coord] -> Grid -> Grid
 addNewBlock fallingCoords grid = foldr (setCell Cell {cellObject = Orange, cellState = Falling, toDestroy = False}) grid fallingCoords

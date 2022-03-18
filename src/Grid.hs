@@ -5,6 +5,7 @@ import Graphics.Gloss
 import Settings
 import Data.Function ((&))
 import Data.Maybe ( fromMaybe )
+import GHC.Stats (RTSStats(cumulative_par_max_copied_bytes))
 
 newtype Grid = Grid (Array (Int, Int) Cell)
     deriving (Eq, Show)
@@ -46,9 +47,8 @@ emptyGrid = Grid (array ((1,1),(gridWidth,gridHeight)) [((x,y), emptyCell) | x<-
 makeGrid = foldr (setCell Cell {cellObject = Orange, cellState = Falling,}) -}
 
 makeGrid :: [CellObject] -> [Coord] -> Grid -> Grid -- is there an implicit way to do this? zip?
-makeGrid [] [] grid = grid
-{- makeGrid [] _ grid = grid
-makeGrid _ [] grid = grid -}
+makeGrid [] _ grid = grid
+makeGrid _ [] grid = grid
 makeGrid (object:objects) (coord:coords) grid = makeGrid objects coords (setCell Cell {cellObject = object, cellState = Falling, toDestroy = False} coord grid)
 
 drawGrid :: Grid -> Picture
@@ -58,8 +58,8 @@ drawGrid grid = pictures [drawCell x y | x <- [1..gridWidth], y <- [1..gridHeigh
 
             case getCellObject of
                 Empty   -> pictures [
-                            color haskellColor $ rectangleSolid cellSize cellSize,
-                            color (styleDestroy black) $ rectangleWire cellSize cellSize]
+                            color bgColor $ rectangleSolid cellSize cellSize,
+                            color (styleDestroy bgWire) $ rectangleWire cellSize cellSize]
                 Orange  -> pictures [
                             color (styleDestroy orange) $ rectangleSolid cellSize cellSize,
                             color (styleDestroy black) $ rectangleWire cellSize cellSize]
@@ -80,6 +80,13 @@ drawGrid grid = pictures [drawCell x y | x <- [1..gridWidth], y <- [1..gridHeigh
                     getToDestroy = toDestroy $ fromMaybe emptyCell (getCell grid (x,y))
 
                     styleDestroy color -- if toDestroy - remove block outline and darken
-                        | color == black && getToDestroy    = transparentColor 
-                        | getToDestroy                      = dark color
-                        | otherwise                         = color
+                        | color == black && getToDestroy            = transparentColor 
+                        | getToDestroy                              = dark color
+                        | otherwise                                 = color
+
+                    bgColor
+                        | y == gridHeight || y == gridHeight - 1    = haskellColor 
+                        | otherwise                                 = light haskellColor
+                    bgWire
+                        | y == gridHeight || y == gridHeight - 1    = haskellColor
+                        | otherwise                                 = black
