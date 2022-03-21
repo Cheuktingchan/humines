@@ -51,14 +51,14 @@ makeGrid [] _ grid = grid
 makeGrid _ [] grid = grid
 makeGrid (object:objects) (coord:coords) grid = makeGrid objects coords (setCell Cell {cellObject = object, cellState = Falling, toDestroy = False} coord grid)
 
-drawGrid :: Grid -> Picture
-drawGrid grid = pictures [drawCell x y | x <- [1..gridWidth], y <- [1..gridHeight]]
+drawGrid :: Color -> Grid -> Picture
+drawGrid bgColor grid = pictures [drawCell x y | x <- [1..gridWidth], y <- [1..gridHeight]]
     where
         drawCell x y = translate (fromIntegral x * cellSize - fromIntegral (windowWidth `div` 2 - gridWidth * 10)) (fromIntegral y * 40 - fromIntegral (windowHeight `div` 2 - gridHeight * 6)) $
 
             case getCellObject of
                 Empty   -> pictures [
-                            color bgColor $ rectangleSolid cellSize cellSize,
+                            color bgColorStyle $ rectangleSolid cellSize cellSize,
                             color (styleDestroy bgWire) $ rectangleWire cellSize cellSize]
                 Orange  -> pictures [
                             color (styleDestroy orange) $ rectangleSolid cellSize cellSize,
@@ -84,9 +84,9 @@ drawGrid grid = pictures [drawCell x y | x <- [1..gridWidth], y <- [1..gridHeigh
                         | getToDestroy                              = dark color
                         | otherwise                                 = color
 
-                    bgColor
-                        | y == gridHeight || y == gridHeight - 1    = haskellColor 
-                        | otherwise                                 = light haskellColor
+                    bgColorStyle
+                        | y == gridHeight || y == gridHeight - 1    = bgColor 
+                        | otherwise                                 = light bgColor
                     bgWire
-                        | y == gridHeight || y == gridHeight - 1    = haskellColor
+                        | y == gridHeight || y == gridHeight - 1    = bgColor
                         | otherwise                                 = black

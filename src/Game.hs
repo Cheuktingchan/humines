@@ -3,12 +3,13 @@ module Game where
 import Settings
 import Grid
 import Data.Array (array)
-import Data.Function ((&))
 import Data.Maybe (fromMaybe)
 
 allPossibleBlocks :: [[CellObject]]
 allPossibleBlocks = sequenceA (replicate 4 [Orange,White])
 
+{- updateGrid calls setCell n times where n is the size of the grid. This is neccessary because the logic for each cell
+   requires the information of the cells before it to be updated already. -}
 updateGrid :: Bool -> Grid -> Grid
 updateGrid destroyBlocks grid = foldr updateCell grid coords
     where
@@ -76,9 +77,16 @@ updateGrid destroyBlocks grid = foldr updateCell grid coords
                             | or [ a | a <- solidSquareCheck <$> [(x - 1, y - 1), (x - 1, y), (x , y - 1), (x, y)]] = cell {toDestroy = True}
                             | otherwise                                                                             = cell
 
-addNewBlock :: [Coord] -> Grid -> Grid
-addNewBlock fallingCoords grid = foldr (setCell Cell {cellObject = Orange, cellState = Falling, toDestroy = False}) grid fallingCoords
+numberToDestroy :: Grid -> Int 
+numberToDestroy grid = isDestroy coords
+    where
+        -- this ordering for updating grid succesively left to right, top to bottom
+        coords :: [Coord]
+        coords = [ (x,y) | x <- [gridWidth, gridWidth-1 ..1], y <- [gridHeight , gridHeight -1 ..1]]
 
-addNewSolid :: [Coord] -> Grid -> Grid
-addNewSolid solidCoords grid = foldr (setCell Cell {cellObject = Orange, cellState = Solid, toDestroy = False}) grid solidCoords
+        isDestroy :: [Coord] -> Int
+        isDestroy [] = 0
+        isDestroy ((x,y):coords)
+            | toDestroy $ fromMaybe emptyCell (getCell grid (x,y)) = 1 + isDestroy coords
+            | otherwise                                          = 0 + isDestroy coords
 
