@@ -16,16 +16,15 @@ data Scene = Menu | Game | GameOver
     deriving (Eq, Show)
 
 data World = World {
-    scene      :: Scene,        -- current scene of the game
-    grid :: Grid,
-    controllingCoords :: [Coord],
-    controllingCellObjects :: [CellObject],
-    direction :: Direction,
-    randomSeed :: (Int, StdGen),
-    frameCount :: Int,
-    score :: Int,
-    timer :: Int,
-    bgColor :: Color
+    scene      :: Scene,                    -- stage of the game
+    grid :: Grid,                           -- grid
+    controllingCoords :: [Coord],           -- controlled block coordinates
+    controllingCellObjects :: [CellObject], -- controlled block object types
+    direction :: Direction,                 -- direction block is moving in
+    randomSeed :: (Int, StdGen),            -- the seed generated for random blocks
+    frameCount :: Int,                      -- the number of frames since the current scene started
+    score :: Int,                           -- the score during Game scenes                         
+    bgColor :: Color                        -- the background color
 }
 
 initialWorld = World {
@@ -37,7 +36,6 @@ initialWorld = World {
     randomSeed = randomR (0, 15) (mkStdGen 1),
     frameCount = 0,
     score = 0,
-    timer = 0,
     bgColor = haskellColor
 }
 
@@ -45,6 +43,7 @@ draw :: World -> Picture
 draw world =
     case scene world of
         Menu -> pictures $
+        -- drawing the menu game title and instructions
             [translate (fromIntegral (-windowWidth `div` 5)) 100 $ scale 0.5 0.5 $ text "Humines"]
             ++
             [translate (fromIntegral (-windowWidth `div` 5)) 0 $ scale 0.25 0.25 $ text "Press W to play!"]
@@ -55,11 +54,14 @@ draw world =
             ++
             [translate (fromIntegral (-windowWidth `div` 5)) (-200) $ scale 0.1 0.1 $ text "Space : Drop block"]
 
-        Game -> pictures $
+        Game -> pictures $ 
+        -- draw the background color
             [color (bgColor world) $ rectangleSolid (fromIntegral windowWidth) (fromIntegral windowHeight)]
             ++
+        -- draw the gird
             [drawGrid (bgColor world) (grid world)]
             ++
+        -- draw the UI (Destory timer, Time left, Score)
             [translate (fromIntegral (-windowWidth `div` 2) + 10) 100 $ scale 0.25 0.25 $ text "Destroy:"]
             ++
             [translate (fromIntegral (-windowWidth `div` 2) + 10) 60 $ scale 0.25 0.25 $ text $ show $ 5 - framesToSeconds (frameCount world) `mod` timeToDestroy]
@@ -72,6 +74,7 @@ draw world =
             ++
             [translate (fromIntegral (windowWidth `div` 3) + 10) 60 $ scale 0.25 0.25 $ text $ show $ score world]
         GameOver -> pictures $
+        -- draw game over screen and instructions
             [translate (fromIntegral (-windowWidth `div` 5)) 100 $ scale 0.5 0.5 $ text "Finished!"]
             ++
             [translate (fromIntegral (-windowWidth `div` 5)) 0 $ scale 0.25 0.25 $ text $ "You Got: " ++ show (score world)]
@@ -79,46 +82,50 @@ draw world =
             [translate (fromIntegral (-windowWidth `div` 5)) (-50) $ scale 0.25 0.25 $ text "Press W to play again!"]
 
 handler :: Event -> World -> World
-handler (EventKey (Char 'a') Down _ _) world =
-    case scene world of
-        Game        -> world {
-            direction = Left
-        }
-        _        -> world
+-- keys pressed down events
+handler (EventKey (Char char) Down _ _) world = 
+    case char of 
+        'a' -> 
+            case scene world of
+                Game        -> world {direction = Left}
+                _           -> world 
+        'w' -> 
+            case scene world of
+                Menu        -> world {
+                    scene = Game,
+                    frameCount = 0
+                }
+                GameOver    -> initialWorld{
+                    scene = Game,
+                    randomSeed = randomSeed world
+                }
+                Game        -> world
+        'd' -> 
+            case scene world of
+                Game        -> world {
+                    direction = Right
+                }
+                _        -> world
+        _   -> world
 
-handler (EventKey (Char 'w') Down _ _) world =
-    case scene world of
-        Menu        -> world {
-            scene = Game,
-            frameCount = 0
-        }
-        GameOver    -> initialWorld{
-            scene = Game,
-            randomSeed = randomSeed world
-        }
-        Game        -> world
+-- key released events
+handler (EventKey (Char char) Up _ _) world =
+    case char of
+        'a' -> 
+            case scene world of
+                Game        -> world {
+                    direction = if direction world == Left then Stationary else Right
+                }
+                _        -> world
+        'd' -> 
+            case scene world of
+                Game        -> world {
+                    direction = if direction world == Right then Stationary else Left
+                }
+                _        -> world
+        _   -> world
 
-handler (EventKey (Char 'd') Down _ _) world =
-    case scene world of
-        Game        -> world {
-            direction = Right
-        }
-        _        -> world
-
-handler (EventKey (Char 'a') Up _ _) world =
-    case scene world of
-        Game        -> world {
-            direction = if direction world == Left then Stationary else Right
-        }
-        _        -> world
-
-handler (EventKey (Char 'd') Up _ _) world =
-    case scene world of
-        Game        -> world {
-            direction = if direction world == Right then Stationary else Left
-        }
-        _        -> world
-
+-- space pressed down event
 handler (EventKey (SpecialKey KeySpace) Down _ _) world =
     case scene world of
         Game        -> world {
@@ -140,18 +147,20 @@ update time world = world {
     bgColor = newBgColor
     }
     where
+        -- check if game over
         newScene
             | gameIsOver        = GameOver
             | otherwise         = scene world
-
         gameIsOver
             | frameCount world > (30 * fps) = True
             | otherwise                     = or [cellState z == Solid | z <- fromMaybe emptyCell . getCell (grid world) <$> [(x,gridHeight - 2) | x <- [1 .. gridWidth]]]
         
+        -- get new grid which depending on whether it is time to destroy
         newGrid
             | isTimeToDestroy (frameCount world)    = makeGrid (controllingCellObjects world) (controllingCoords world) (updateGrid True (grid world))
             | otherwise                             = makeGrid (controllingCellObjects world) (controllingCoords world) (updateGrid False (grid world))
         
+        -- get new coordinates of the controlling block
         newControllingCoords -- if the controllingCoords are not in rows 11 or 12, reset coords ( new block )
             | snd (head (controllingCoords world)) == 12 || snd (head (controllingCoords world)) == 11 =
                 case direction world of
@@ -166,17 +175,21 @@ update time world = world {
             | all (\(x,y) -> x /= gridWidth) (controllingCoords world) && frameCount world `mod` horizontalSpeed == 0  = \(x,y) -> (x + 1, y)
             | otherwise     = \(x,y) -> (x, y)
 
+        -- add this number to the score if it is time to destroy
         newlyDestroyed 
             | isTimeToDestroy (frameCount world)    = numberToDestroy $ grid world
             | otherwise                             = 0
         
+        -- generate a new seed if block gets placed for the next block to be random
         newSeed :: (Int, StdGen)
         newSeed
             | snd (head (controllingCoords world)) == 12 || snd (head (controllingCoords world)) == 11 = randomSeed world
             | otherwise             = randomR (0, 15) (snd $ randomSeed world)
-
+        
+        -- if time to destroy change background color to the next in colorList
         newBgColor
-            | isTimeToDestroy (frameCount world)    = fromMaybe haskellColor $ getNextColor $ bgColor world -- by defaulting to haskellColor it will loop back through the list of colors if Nothing
+            -- by defaulting to haskellColor it will loop back through the list of colors if Nothing
+            | isTimeToDestroy (frameCount world)    = fromMaybe haskellColor $ getNextColor $ bgColor world
             | otherwise                             = bgColor world
 
 main :: IO ()

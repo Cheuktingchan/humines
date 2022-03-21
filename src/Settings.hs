@@ -7,9 +7,10 @@ import Data.Maybe (fromMaybe, isNothing)
 
 type Coord = (Int, Int)
 
-data Direction = Stationary | Left | Right
+data Direction = Stationary | Left | Right 
     deriving (Eq, Show)
 
+-- colors
 haskellColor = makeColorI 94 80 134 255
 transparentColor = makeColorI 0 0 0 0
 lightTurq = makeColorI 20 100 100 255
@@ -34,10 +35,10 @@ fps = 30
 timeToDestroy :: Int
 timeToDestroy = 5
 
-horizontalSpeed :: Int
-horizontalSpeed = fps `div` 15
+horizontalSpeed :: Int -- the frames at which you can go left and right
+horizontalSpeed = fps `div` 10
 
-framesToSeconds :: Int -> Int
+framesToSeconds :: Int -> Int -- converts frames to seconds
 framesToSeconds f = f `div` fps
 
 isTimeToDestroy :: Int -> Bool
@@ -51,8 +52,8 @@ windowWidth = fst windowSize
 
 windowHeight = snd windowSize
 
+-- gets the center of screen (note: if multiple extended displays - treats it as one whole display)
 getCenterPosition :: IO (Int, Int)
 getCenterPosition = do
-    -- the center of screen (note: if multiple extended displays - treats it as one whole display)
     (resWidth,resHeight) <- getScreenSize
     pure ((resWidth-windowWidth) `div` 2, (resHeight-windowHeight) `div` 2)
