@@ -1,7 +1,7 @@
 # humines
 
-A Lumines clone made in Haskell.
+A Lumines clone made using Haskell.
 
 C dependencies (gloss wraps): libgl-dev, libglu-dev, freeglut3-dev
 
-Use stack run.
+Run the game using `stack run`
